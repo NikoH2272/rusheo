@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin · Qualifer Rusheo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+  <link rel="icon" type="image/png" href="assets/logos/logorusheo.png">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+  <script src="base/config.js"></script>
+  <script src="base/common.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo-wrap">
+    <img src="assets/logos/logorusheo.png" alt="Qualifer Rusheo">
+    <div class="logo-text">Admin<small>Qualifer Rusheo</small></div>
+  </a>
+  <div class="header-right">
+    <span id="save-state"></span>
+    <span id="who"></span>
+    <button class="hbtn dim" id="change-pw" hidden>Cambiar clave</button>
+    <button class="hbtn gold" id="save-btn" disabled>Guardar</button>
+    <button class="hbtn danger" id="logout" hidden>Salir</button>
+  </div>
+</header>
+
+<!-- ── LOGIN ── -->
+<div id="login-view">
+  <div class="login-card">
+    <h2>Panel <span style="color:var(--gold)">Admin</span></h2>
+    <p>Acceso restringido al staff de Rusheo.</p>
+    <div id="pending-msg" hidden></div>
+    <div class="lf">
+      <div>
+        <label for="li-user">Usuario</label>
+        <input type="text" id="li-user" autocomplete="username" placeholder="admin">
+      </div>
+      <div>
+        <label for="li-pass">Contraseña</label>
+        <input type="password" id="li-pass" autocomplete="current-password">
+      </div>
+      <button id="li-btn">Ingresar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADMIN ── -->
+<div id="admin-view">
+  <div class="admin-wrap">
+
+    <!-- Tabs -->
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-tab="general">General</button>
+      <button class="admin-tab" data-tab="social">Redes & Links</button>
+      <button class="admin-tab" data-tab="schedule">Calendario</button>
+      <button class="admin-tab" data-tab="eventos">Eventos</button>
+      <button class="admin-tab" data-tab="results">Resultados</button>
+      <button class="admin-tab" data-tab="prizes">Premios</button>
+      <button class="admin-tab" data-tab="rules">Reglas</button>
+      <button class="admin-tab" data-tab="sponsors">Sponsors</button>
+      <button class="admin-tab" data-tab="users">Usuarios</button>
+    </div>
+
+    <!-- ═══════════ TAB: GENERAL ═══════════ -->
+    <div class="tab-panel active" id="tab-general">
+
+      <div class="adm-section">
+        <h2><span class="num">01</span>Información del torneo</h2>
+        <div class="field-grid">
+          <div class="field">
+            <label>Nombre del torneo</label>
+            <input type="text" id="t-name" placeholder="Qualifer Rusheo">
+          </div>
+          <div class="field">
+            <label>Edición / Temporada</label>
+            <input type="text" id="t-edition" placeholder="S1 2025">
+          </div>
+          <div class="field">
+            <label>Descripción (hero)</label>
+            <input type="text" id="t-description" placeholder="Torneo competitivo de Free Fire...">
+          </div>
+          <div class="field">
+            <label>Estado actual</label>
+            <select id="t-state">
+              <option value="abierto">Inscripciones abiertas</option>
+              <option value="cerrado">Inscripciones cerradas</option>
+              <option value="en_juego">En clasificación</option>
+              <option value="finalizado">Finalizado</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Fecha de inicio</label>
+            <input type="date" id="t-startDate">
+          </div>
+          <div class="field">
+            <label>Hora de inicio (MX)</label>
+            <input type="time" id="t-startTime">
+          </div>
+          <div class="field">
+            <label>Bolsa de premios total (texto)</label>
+            <input type="text" id="t-prizePool" placeholder="Por anunciar">
+          </div>
+          <div class="field">
+            <label>Total equipos inscritos (manual)</label>
+            <input type="number" id="t-teamCount" placeholder="32" min="0">
+          </div>
+        </div>
+      </div>
+
+      <div class="adm-section">
+        <h2><span class="num">02</span>Descripción de entrenamientos</h2>
+        <div class="field-grid cols-1">
+          <div class="field">
+            <label>Texto de la sección entrenamientos</label>
+            <textarea id="t-trainDescription" placeholder="Únete a las sesiones de entrenamiento organizadas por el equipo Rusheo..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="adm-section">
+        <h2><span class="num">03</span>Descripción del formato</h2>
+        <div class="field-grid cols-1">
+          <div class="field">
+            <label>Texto descriptivo del formato</label>
+            <textarea id="t-formatDescription" placeholder="El torneo se estructura en fases eliminatorias..."></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ TAB: REDES & LINKS ═══════════ -->
+    <div class="tab-panel" id="tab-social">
+      <div class="adm-section">
+        <h2><span class="num">01</span>Redes sociales</h2>
+        <p style="color:var(--gray);font-size:.78rem;margin-bottom:16px">Pega la URL completa (https://...). Deja vacío para ocultar.</p>
+        <div class="field-grid">
+          <div class="field">
+            <label>Instagram</label>
+            <input type="url" id="lnk-instagram" placeholder="https://instagram.com/rusheo">
+          </div>
+          <div class="field">
+            <label>Discord</label>
+            <input type="url" id="lnk-discord" placeholder="https://discord.gg/...">
+          </div>
+          <div class="field">
+            <label>TikTok</label>
+            <input type="url" id="lnk-tiktok" placeholder="https://tiktok.com/@rusheo">
+          </div>
+          <div class="field">
+            <label>YouTube</label>
+            <input type="url" id="lnk-youtube" placeholder="https://youtube.com/@rusheo">
+          </div>
+          <div class="field">
+            <label>WhatsApp (grupo/canal)</label>
+            <input type="url" id="lnk-whatsapp" placeholder="https://chat.whatsapp.com/...">
+          </div>
+        </div>
+      </div>
+
+      <div class="adm-section">
+        <h2><span class="num">02</span>Links del torneo</h2>
+        <div class="field-grid">
+          <div class="field">
+            <label>Transmisión / Stream (YouTube, Twitch…)</label>
+            <input type="url" id="lnk-stream" placeholder="https://youtube.com/live/...">
+          </div>
+          <div class="field">
+            <label>Enlace de Entrenamientos</label>
+            <input type="url" id="lnk-entrenamientos" placeholder="https://...">
+          </div>
+          <div class="field">
+            <label>Formulario de inscripción</label>
+            <input type="url" id="lnk-register" placeholder="https://forms.gle/...">
+          </div>
+          <div class="field">
+            <label>Reglamento (PDF u otro)</label>
+            <input type="url" id="lnk-rules" placeholder="https://...">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ TAB: CALENDARIO ═══════════ -->
+    <div class="tab-panel" id="tab-schedule">
+      <div class="adm-section">
+        <h2><span class="num">01</span>Jornadas</h2>
+        <p style="color:var(--gray);font-size:.78rem;margin-bottom:16px">Solo las jornadas marcadas como <strong style="color:var(--white)">Visible</strong> aparecen en la página pública.</p>
+        <div class="schedule-list" id="sch-list"></div>
+        <button class="btn-add" id="sch-add">+ Agregar jornada</button>
+      </div>
+    </div>
+
+    <!-- ═══════════ TAB: EVENTOS ═══════════ -->
+    <div class="tab-panel" id="tab-eventos">
+      <div class="adm-section">
+        <h2><span class="num">01</span>Próximos eventos</h2>
+        <p style="color:var(--gray);font-size:.78rem;margin-bottom:16px">Eventos que aparecen en la sección "Próximos eventos" de la página pública.</p>
+        <div id="eventos-adm-list"></div>
+        <button class="btn-add" id="evento-add">+ Agregar evento</button>
+      </div>
+    </div>
+
+    <!-- ═══════════ TAB: RESULTADOS ═══════════ -->
+    <div class="tab-panel" id="tab-results">
+      <div class="adm-section">
+        <h2><span class="num">01</span>Grupos y resultados</h2>
+        <p style="color:var(--gray);font-size:.78rem;margin-bottom:16px">Cada grupo tiene filas de equipos con kills, puntos de posición y penalización.</p>
+        <div id="results-list"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn-add" id="results-add-group" style="flex:1;min-width:160px">+ Agregar grupo vacío</button>
+          <button class="btn-add" id="results-bulk-toggle" style="flex:1;min-width:160px">⬇ Carga masiva de equipos</button>
+        </div>
+        <div id="bulk-panel" hidden style="margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:16px">
+          <div class="field-grid" style="margin-bottom:10px">
+            <div class="field">
+              <label>Título del grupo</label>
+              <input type="text" id="bulk-title" placeholder="Grupo A">
+            </div>
+            <div class="field">
+              <label>Fase</label>
+              <select id="bulk-phase"></select>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:10px">
+            <label>Nombres de equipos — uno por línea</label>
+            <textarea id="bulk-names" placeholder="PUMAS GG&#10;RED WINE&#10;KRAKEN ESPORT&#10;..." style="min-height:140px"></textarea>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="hbtn gold" id="bulk-create">Crear grupo</button>
+            <button class="hbtn dim" id="bulk-cancel">Cancelar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ TAB: PREMIOS ═══════════ -->
+    <div class="tab-panel" id="tab-prizes">
+      <div class="adm-section">
+        <h2><span class="num">01</span>Bolsa de premios</h2>
+        <div id="prizes-adm-list"></div>
+        <button class="btn-add" id="prizes-add">+ Agregar premio</button>
+      </div>
+    </div>
+
+    <!-- ═══════════ TAB: REGLAS ═══════════ -->
+    <div class="tab-panel" id="tab-rules">
+      <div class="adm-section">
+        <h2><span class="num">01</span>Reglas generales</h2>
+        <div class="field-grid cols-1">
+          <div class="field">
+            <label>Reglas (una por línea, formato "Título: texto")</label>
+            <textarea id="r-rulesText" style="min-height:180px"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="adm-section">
+        <h2><span class="num">02</span>Aclaraciones</h2>
+        <div class="field-grid cols-1">
+          <div class="field">
+            <label>Aclaraciones (una por línea)</label>
+            <textarea id="r-clarificationsText" style="min-height:120px"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="adm-section">
+        <h2><span class="num">03</span>Prohibiciones</h2>
+        <div class="field-grid cols-1">
+          <div class="field">
+            <label>Prohibiciones (una por línea)</label>
+            <textarea id="r-prohibitedText" style="min-height:80px"></textarea>
+          </div>
+          <div class="field" style="margin-top:8px">
+            <label>Nota adicional</label>
+            <input type="text" id="r-rulesNote">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ TAB: SPONSORS ═══════════ -->
+    <div class="tab-panel" id="tab-sponsors">
+      <div class="adm-section">
+        <h2><span class="num">01</span>Sponsors</h2>
+        <div class="sponsor-grid" id="sponsor-list"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════ TAB: USUARIOS ═══════════ -->
+    <div class="tab-panel" id="tab-users">
+      <div class="adm-section">
+        <h2><span class="num">01</span>Usuarios staff</h2>
+        <div id="users-list"></div>
+        <div class="adm-section" style="background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:16px;margin-top:16px">
+          <h3 style="font:700 1rem/1 var(--font-d);margin-bottom:14px">Crear usuario</h3>
+          <div class="field-grid">
+            <div class="field"><label>Usuario</label><input type="text" id="nu-user"></div>
+            <div class="field"><label>Contraseña</label><input type="password" id="nu-pass"></div>
+            <div class="field"><label>Nombre</label><input type="text" id="nu-name"></div>
+            <div class="field">
+              <label>Rol</label>
+              <select id="nu-role"><option value="editor">Editor</option><option value="admin">Admin</option></select>
+            </div>
+          </div>
+          <button class="hbtn gold" id="nu-btn" style="margin-top:12px">Crear usuario</button>
+        </div>
+      </div>
+      <div class="adm-section">
+        <h2><span class="num">02</span>Cambiar mi contraseña</h2>
+        <div class="field-grid">
+          <div class="field"><label>Contraseña actual</label><input type="password" id="cp-old"></div>
+          <div class="field"><label>Nueva contraseña</label><input type="password" id="cp-new"></div>
+        </div>
+        <button class="hbtn gold" id="cp-btn" style="margin-top:12px">Cambiar contraseña</button>
+      </div>
+    </div>
+
+  </div><!-- .admin-wrap -->
+</div><!-- #admin-view -->
+
+<div id="savebar">
+  <span class="sbar-info">Tienes cambios sin guardar</span>
+  <div style="display:flex;gap:10px">
+    <button class="hbtn dim" id="savebar-discard">Descartar</button>
+    <button class="hbtn gold" id="savebar-save">Guardar cambios</button>
+  </div>
+</div>
+
+<script src="js/img-creator.js"></script>
+<script src="js/admin-panel.js" defer></script>
+</body>
+</html>

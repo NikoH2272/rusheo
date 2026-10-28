@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Qualifer Rusheo · Free Fire</title>
+  <meta name="description" content="Torneo oficial Qualifer Rusheo de Free Fire. Consulta el calendario, resultados y clasificaciones.">
+  <meta property="og:title" content="Qualifer Rusheo · Free Fire">
+  <meta property="og:description" content="Torneo competitivo de Free Fire organizado por Rusheo. Sigue el torneo en vivo.">
+  <meta property="og:image" content="assets/logos/logoeventoqualifer.png">
+  <link rel="icon" type="image/png" href="assets/logos/logorusheo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js"></script>
+  <script src="base/config.js"></script>
+  <script src="base/common.js"></script>
+</head>
+<body>
+
+<!-- ── Page Loader ── -->
+<div id="page-loader">
+  <img src="assets/logos/logorusheo.png" alt="Rusheo" class="loader-logo">
+  <div class="loader-bar"></div>
+</div>
+
+<!-- ── Error Banner ── -->
+<div id="error-banner"></div>
+
+<!-- ══════════════════════════════════════════════
+     NAVBAR
+══════════════════════════════════════════════════ -->
+<nav id="navbar" aria-label="Navegación principal">
+  <a href="#hero" class="nav-brand">
+    <img src="assets/logos/logorusheo.png" alt="Agencia Rusheo">
+    <div class="nav-brand-text">Agencia <span class="brand-gold">Rusheo</span><span class="brand-event">Qualifer · Evento actual</span></div>
+  </a>
+  <div class="nav-links" role="list">
+    <a href="#formato" role="listitem">Formato</a>
+    <a href="#calendario" role="listitem">Calendario</a>
+    <a href="#equipos" role="listitem">Equipos</a>
+    <a href="#clasificacion" role="listitem">Clasificación</a>
+    <a href="#premios" role="listitem">Premios</a>
+    <a href="#eventos" role="listitem">Eventos</a>
+    <a href="#entrenamientos" role="listitem" style="color:var(--gold)">Entrenamientos</a>
+    <a href="#reglas" role="listitem">Reglas</a>
+  </div>
+  <a id="nav-stream-btn" href="#" class="nav-btn" target="_blank" rel="noopener" hidden>▶ Ver transmisión</a>
+  <button class="nav-menu-btn" aria-label="Menú" aria-expanded="false" id="menu-toggle">☰</button>
+</nav>
+
+<!-- Mobile menu -->
+<div id="mobile-menu" role="dialog" aria-label="Menú móvil">
+  <a href="#formato" class="menu-close-trigger">Formato</a>
+  <a href="#calendario" class="menu-close-trigger">Calendario</a>
+  <a href="#equipos" class="menu-close-trigger">Equipos</a>
+  <a href="#clasificacion" class="menu-close-trigger">Clasificación</a>
+  <a href="#premios" class="menu-close-trigger">Premios</a>
+  <a href="#eventos" class="menu-close-trigger">Eventos</a>
+  <a href="#entrenamientos" class="menu-close-trigger" style="color:var(--gold)">Entrenamientos</a>
+  <a href="#reglas" class="menu-close-trigger">Reglas</a>
+  <a href="#faq" class="menu-close-trigger">FAQ</a>
+  <a id="mobile-stream-btn" href="#" class="nav-btn" target="_blank" rel="noopener" hidden>▶ Ver transmisión</a>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════ -->
+<section id="hero" aria-label="Presentación del torneo">
+  <div class="hero-bg"></div>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-kicker">
+        <img src="assets/logos/logoeventoqualifer.png" alt="" class="hero-kicker-logo">
+        <span class="hero-kicker-text">Free Fire · por Rusheo</span>
+      </div>
+      <h1 class="hero-title">
+        Qualifer<br><span class="stroke">Rusheo</span>
+      </h1>
+      <p class="hero-desc" id="hero-desc">Torneo competitivo de Free Fire organizado por la comunidad Rusheo. Compite, clasifica y deja tu marca.</p>
+      <div class="hero-meta">
+        <span class="tag tag-gold" id="hero-status">Inscripciones abiertas</span>
+        <span class="gray" id="hero-date" style="font:500 .8rem var(--font-b)"></span>
+      </div>
+      <div id="hero-countdown" aria-label="Cuenta regresiva" style="display:none"></div>
+      <div class="hero-cta" style="margin-top:24px">
+        <a href="#calendario" class="btn-primary">▼ Ver calendario</a>
+        <a href="#formato" class="btn-secondary">Conocer el formato</a>
+      </div>
+    </div>
+    <div class="hero-mascot">
+      <img src="assets/logos/logorusheo.png" alt="Mascota Rusheo" loading="eager">
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     STATS STRIP
+══════════════════════════════════════════════════ -->
+<section id="stats" aria-label="Estadísticas del torneo">
+  <div class="stats-grid container">
+    <div class="stat-item">
+      <div class="stat-num" id="stat-teams">—</div>
+      <div class="stat-label">Equipos inscritos</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-qualified">—</div>
+      <div class="stat-label">Clasificados</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-next">—</div>
+      <div class="stat-label">Próxima jornada</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num" id="stat-prize">—</div>
+      <div class="stat-label">Premio total</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     FORMAT
+══════════════════════════════════════════════════ -->
+<section id="formato" class="section" aria-label="Formato del torneo">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Cómo funciona</span>
+      <h2 class="section-title"><span class="accent-line"></span>Formato del torneo</h2>
+      <p class="section-sub" id="format-desc">El torneo se estructura en fases eliminatorias progresivas. Cada fase determina qué equipos avanzan a la siguiente ronda.</p>
+    </div>
+    <div class="bracket-wrap" id="bracket" role="list" aria-label="Fases del torneo"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     CALENDAR
+══════════════════════════════════════════════════ -->
+<section id="calendario" class="section" aria-label="Calendario de partidas">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Jornadas</span>
+      <h2 class="section-title"><span class="accent-line"></span>Calendario</h2>
+    </div>
+    <div class="cal-filters" id="cal-filters" role="group" aria-label="Filtrar por fase"></div>
+    <div id="cal-list" role="list"></div>
+    <div id="cal-empty" hidden>Sin partidas programadas por el momento.</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     NEXT MATCH
+══════════════════════════════════════════════════ -->
+<section id="proxima" class="section" aria-label="Próxima partida">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">No te pierdas</span>
+      <h2 class="section-title"><span class="accent-line"></span>Próxima partida</h2>
+    </div>
+    <div id="next-match-wrap"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     TEAMS
+══════════════════════════════════════════════════ -->
+<section id="equipos" class="section" aria-label="Equipos participantes">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Participantes</span>
+      <h2 class="section-title"><span class="accent-line"></span>Equipos</h2>
+    </div>
+    <div class="teams-filters" id="teams-filters" role="group" aria-label="Filtrar equipos"></div>
+    <div id="teams-grid" role="list"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     STANDINGS
+══════════════════════════════════════════════════ -->
+<section id="clasificacion" class="section" aria-label="Tabla de clasificación">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Resultados</span>
+      <h2 class="section-title"><span class="accent-line"></span>Clasificación</h2>
+    </div>
+    <div class="standings-tabs" id="standings-tabs" role="tablist"></div>
+    <div id="standings-wrap">
+      <div id="standings-empty" hidden>Sin resultados publicados aún.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     PRIZES
+══════════════════════════════════════════════════ -->
+<section id="premios" class="section" aria-label="Premios del torneo">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Recompensas</span>
+      <h2 class="section-title"><span class="accent-line"></span>Premios</h2>
+    </div>
+    <div id="prizes-content">
+      <div id="prizes-pending">Premios por anunciar.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     RULES
+══════════════════════════════════════════════════ -->
+<section id="reglas" class="section" aria-label="Reglamento">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Reglamento</span>
+      <h2 class="section-title"><span class="accent-line"></span>Reglas</h2>
+    </div>
+    <div class="rules-grid">
+      <div class="rules-block">
+        <div class="rules-block-head"><h3>📋 Reglas generales</h3></div>
+        <div id="rules-list"></div>
+      </div>
+      <div class="rules-block">
+        <div class="rules-block-head"><h3>⚠️ Prohibiciones y aclaraciones</h3></div>
+        <div id="rules-extra"></div>
+      </div>
+    </div>
+    <p id="rules-note" style="margin-top:20px;font:400 .78rem var(--font-b);color:var(--gray)"></p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     PRÓXIMOS EVENTOS
+══════════════════════════════════════════════════ -->
+<section id="eventos" class="section" aria-label="Próximos eventos">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Lo que viene</span>
+      <h2 class="section-title"><span class="accent-line"></span>Próximos eventos</h2>
+    </div>
+    <div id="eventos-grid" class="eventos-grid"></div>
+    <div id="eventos-empty" hidden>No hay eventos próximos por el momento.</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     ENTRENAMIENTOS
+══════════════════════════════════════════════════ -->
+<section id="entrenamientos" class="section" aria-label="Entrenamientos">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Comunidad</span>
+      <h2 class="section-title"><span class="accent-line"></span>Entrenamientos</h2>
+    </div>
+    <div class="train-banner">
+      <div class="train-text">
+        <h3>Sesiones de entrenamiento Rusheo</h3>
+        <p id="train-desc">Únete a las sesiones de entrenamiento organizadas por el equipo Rusheo. Mejora tu nivel, practica tácticas y prepárate para el torneo.</p>
+      </div>
+      <a id="train-link" href="#" class="btn-primary" target="_blank" rel="noopener" style="flex-shrink:0">Ver entrenamientos</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     TRANSMISIÓN
+══════════════════════════════════════════════════ -->
+<section id="transmision" class="section" aria-label="Transmisiones">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">En vivo</span>
+      <h2 class="section-title"><span class="accent-line"></span>Transmisión</h2>
+    </div>
+    <div id="stream-wrap" class="stream-card stream-hidden">
+      <div class="stream-thumb" id="stream-thumb">
+        <img src="assets/logos/logorusheo.png" alt="" class="stream-thumb-logo">
+      </div>
+      <div class="stream-info">
+        <div class="stream-title" id="stream-title">Qualifer Rusheo · En vivo</div>
+        <div class="stream-desc" id="stream-desc">Sigue la transmisión oficial del torneo.</div>
+        <a id="stream-link" href="#" class="btn-primary" target="_blank" rel="noopener" style="width:fit-content">▶ Ver en directo</a>
+      </div>
+    </div>
+    <p id="stream-empty" style="color:var(--gray-dim)">Transmisión no configurada. Se actualizará antes de cada jornada.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     FAQ
+══════════════════════════════════════════════════ -->
+<section id="faq" class="section" aria-label="Preguntas frecuentes">
+  <div class="container">
+    <div class="section-head">
+      <span class="section-label">Dudas</span>
+      <h2 class="section-title"><span class="accent-line"></span>Preguntas frecuentes</h2>
+    </div>
+    <div class="faq-list rules-block" style="max-width:760px">
+      <div id="faq-list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════ -->
+<footer id="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <img src="assets/logos/logorusheo.png" alt="Rusheo">
+      <div class="footer-brand-name">Rusheo</div>
+      <div class="footer-brand-sub">Comunidad Free Fire</div>
+    </div>
+    <div class="footer-links">
+      <div class="footer-col">
+        <h4>Torneo</h4>
+        <a href="#formato">Formato</a>
+        <a href="#calendario">Calendario</a>
+        <a href="#clasificacion">Clasificación</a>
+        <a href="#premios">Premios</a>
+      </div>
+      <div class="footer-col">
+        <h4>Info</h4>
+        <a href="#reglas">Reglas</a>
+        <a href="#equipos">Equipos</a>
+        <a href="#eventos">Eventos</a>
+        <a href="#entrenamientos">Entrenamientos</a>
+        <a href="#faq">FAQ</a>
+        <a href="#transmision">Transmisión</a>
+      </div>
+      <div class="footer-col">
+        <h4>Síguenos</h4>
+        <div class="footer-social" id="footer-social"></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p class="footer-note">© 2025 Rusheo · Qualifer Free Fire · Organizado por @coach niko</p>
+    <p class="footer-note">Plataforma independiente. No afiliada a Garena.</p>
+  </div>
+</footer>
+
+<script src="js/main.js" defer></script>
+</body>
+</html>
