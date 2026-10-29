@@ -599,6 +599,29 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
     }
   });
 
+  $('#results-sync-calendar').addEventListener('click', () => {
+    const schWithTeams = (data.schedule||[]).filter(m => (m.teams||'').trim());
+    if(!schWithTeams.length){ toast('No hay grupos con equipos en el calendario',true); return; }
+    let created = 0;
+    schWithTeams.forEach(m => {
+      const exists = (data.results||[]).some(g => g.title === (m.group||'') && g.phase === (m.phase||''));
+      if(!exists) {
+        const rows = (m.teams||'').split('\n').map(s=>s.trim()).filter(Boolean)
+          .map(t=>({id:uuid(),team:t,logo_serial:'',kills:0,placement:0,penalty:0}));
+        const g = {id:uuid(),phase:m.phase||'',title:m.group||'',kind:'grupo',qualify:0,rows};
+        data.results.push(g);
+        touchedGroups.add(g.id);
+        created++;
+      }
+    });
+    if(created === 0){
+      toast('Todos los grupos del calendario ya están en resultados');
+    } else {
+      renderResults(); markDirty();
+      toast(`${created} grupo${created>1?'s':''} importado${created>1?'s':''} del calendario`);
+    }
+  });
+
   $('#results-bulk-toggle').addEventListener('click', () => {
     bulkPanel.hidden = !bulkPanel.hidden;
     if(!bulkPanel.hidden){ bulkRefreshGroups(); $('#bulk-names').focus(); }
