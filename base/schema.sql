@@ -8,10 +8,11 @@ create extension if not exists "pgcrypto";
 
 -- ── Tabla de configuración general ──────────────────────────
 create table if not exists settings (
-  id         integer primary key default 1,
-  tournament jsonb    not null default '{}',
-  links      jsonb    not null default '{}',
-  prizes     jsonb    not null default '[]',
+  id            integer primary key default 1,
+  tournament    jsonb    not null default '{}',
+  links         jsonb    not null default '{}',
+  prizes        jsonb    not null default '[]',
+  anthropic_key text     not null default '',
   constraint single_row check (id = 1)
 );
 insert into settings(id) values(1) on conflict do nothing;
@@ -44,6 +45,7 @@ create table if not exists schedule (
   status     text        not null default 'proximo' check (status in ('proximo','envivo','finalizado')),
   visible    boolean     not null default false,
   note       text        not null default '',
+  teams      text        not null default '',
   position   integer     not null default 0
 );
 
@@ -179,7 +181,7 @@ begin
   delete from schedule where true;
   i := 0;
   for v_m in select * from jsonb_array_elements(coalesce(p_data->'schedule','[]')) loop
-    insert into schedule(id, phase, group_name, date, time, rooms, status, visible, note, position)
+    insert into schedule(id, phase, group_name, date, time, rooms, status, visible, note, teams, position)
     values (
       (v_m->>'id')::uuid,
       v_m->>'phase',
@@ -190,6 +192,7 @@ begin
       coalesce(v_m->>'status','proximo'),
       coalesce((v_m->>'visible')::boolean, false),
       coalesce(v_m->>'note',''),
+      coalesce(v_m->>'teams',''),
       i
     );
     i := i + 1;
@@ -341,6 +344,27 @@ begin
   end if;
   if length(p_new) < 6 then raise exception 'La nueva clave debe tener al menos 6 caracteres'; end if;
   update staff_users set password_hash = crypt(p_new, gen_salt('bf')) where id = v_user_id;
+end;
+$$;
+
+-- ── Clave de Anthropic (solo staff) ─────────────────────────
+create or replace function staff_get_anthropic_key(p_token text)
+returns text language plpgsql security definer as $$
+begin
+  perform staff_me(p_token);
+  return (select anthropic_key from settings where id = 1);
+end;
+$$;
+
+create or replace function staff_set_anthropic_key(p_token text, p_key text)
+returns void language plpgsql security definer as $$
+declare v_me json;
+begin
+  v_me := staff_me(p_token);
+  if v_me->>'role' <> 'admin' then
+    raise exception 'Solo los admins pueden cambiar la clave de IA';
+  end if;
+  update settings set anthropic_key = p_key where id = 1;
 end;
 $$;
 
