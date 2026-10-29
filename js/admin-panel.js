@@ -317,6 +317,7 @@
             </div>
           </div>
           <div class="rg-head-actions">
+            <span class="rg-kind-badge${g.kind==='general'?' rg-kind-general':''}">${g.kind==='general'?'GENERAL':'GRUPO'}</span>
             <button class="rg-btn rg-btn-ia" data-ia-group="${gi}" title="Extraer con IA"><i class="ti ti-cpu" aria-hidden="true"></i> IA</button>
             <button class="rg-btn rg-btn-png" data-png-group="${gi}" title="Exportar PNG"><i class="ti ti-download" aria-hidden="true"></i></button>
             <button class="rg-btn rg-btn-rm" data-rm-group="${gi}" title="Eliminar grupo"><i class="ti ti-trash" aria-hidden="true"></i></button>
@@ -373,7 +374,12 @@
     const rm = e.target.closest('[data-rm-group]');
     if(rm){ data.results.splice(Number(rm.dataset.rmGroup),1); renderResults(); markDirty(); return; }
     const pngBtn = e.target.closest('[data-png-group]');
-    if(pngBtn){ generateResultPNG(Number(pngBtn.dataset.pngGroup)); return; }
+    if(pngBtn){
+      const gi = Number(pngBtn.dataset.pngGroup);
+      if(data.results[gi]?.kind==='general') generateGeneralPNG(gi);
+      else generateResultPNG(gi);
+      return;
+    }
     const ar = e.target.closest('[data-add-row]');
     if(ar){
       const gi=Number(ar.dataset.addRow);
@@ -569,6 +575,12 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
     ]});
     renderResults(); markDirty();
   });
+  $('#results-add-general').addEventListener('click', () => {
+    data.results.push({id:uuid(),phase:PHASES[0],title:'Tabla General',kind:'general',qualify:0,rows:[
+      {id:uuid(),team:'',logo_serial:'',kills:0,placement:0,penalty:0}
+    ]});
+    renderResults(); markDirty();
+  });
 
   // Bulk import
   const bulkPanel = $('#bulk-panel');
@@ -619,6 +631,32 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
     } else {
       renderResults(); markDirty();
       toast(`${created} grupo${created>1?'s':''} importado${created>1?'s':''} del calendario`);
+    }
+  });
+
+  $('#results-export-csv').addEventListener('click', () => {
+    if(!(data.results||[]).length){ toast('No hay resultados para exportar',true); return; }
+    const lines = ['﻿Fase,Grupo,Posición,Equipo,Kills,P.Posición,Penalización,Total'];
+    (data.results||[]).forEach(g => {
+      const sorted = (g.rows||[]).slice().sort((a,b)=>rrTotal(b)-rrTotal(a));
+      sorted.forEach((r,i) => {
+        const q = s => `"${(s||'').toString().replace(/"/g,'""')}"`;
+        lines.push([q(g.phase),q(g.title),i+1,q(r.team),r.kills||0,r.placement||0,r.penalty||0,rrTotal(r)].join(','));
+      });
+    });
+    const blob = new Blob([lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'resultados-rusheo.csv'; a.click(); URL.revokeObjectURL(a.href);
+    toast('CSV descargado');
+  });
+
+  $('#results-export-all-png').addEventListener('click', async () => {
+    const groups = data.results||[];
+    if(!groups.length){ toast('No hay grupos para exportar',true); return; }
+    toast(`Generando ${groups.length} imagen${groups.length>1?'es':''}…`);
+    for(let i=0;i<groups.length;i++){
+      await generateResultPNG(i);
+      if(groups.length>1) await new Promise(r=>setTimeout(r,400));
     }
   });
 
@@ -1160,6 +1198,192 @@ Responde ÚNICAMENTE con JSON, sin texto adicional:
     a.href = canvas.toDataURL('image/png');
     a.click();
     toast('PNG descargado');
+  }
+
+  // ── Tabla General PNG — fondo generado por canvas ─────────
+  async function generateGeneralPNG(gi) {
+    const g = data.results[gi];
+    if(!g) return;
+    toast('Generando tabla general…');
+
+    const rows = (g.rows||[]).slice().sort((a,b)=>rrTotal(b)-rrTotal(a));
+    const W = 750, headerH = 290, rowH = 54, footerH = 52;
+    const H = headerH + rowH * Math.max(rows.length, 1) + footerH;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // ── Fondo base ──────────────────────────────────────────
+    ctx.fillStyle = '#09090b';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid sutil
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(255,194,26,0.04)';
+    for(let x=0;x<W;x+=38){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=38){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+    // Glow superior
+    const gTop = ctx.createLinearGradient(0,0,0,160);
+    gTop.addColorStop(0,'rgba(255,194,26,0.16)');
+    gTop.addColorStop(1,'transparent');
+    ctx.fillStyle = gTop;
+    ctx.fillRect(0,0,W,160);
+
+    // Línea dorada superior
+    const lineGrad = (y0,y1,a1=1,a2=0) => {
+      const g = ctx.createLinearGradient(0,0,W,0);
+      g.addColorStop(0,'transparent');
+      g.addColorStop(0.1,`rgba(255,194,26,${a1})`);
+      g.addColorStop(0.9,`rgba(255,194,26,${a1})`);
+      g.addColorStop(1,'transparent');
+      return g;
+    };
+    ctx.fillStyle = lineGrad();
+    ctx.fillRect(0,0,W,3);
+
+    // Línea dorada inferior
+    ctx.fillStyle = lineGrad();
+    ctx.fillRect(0,H-3,W,3);
+
+    // ── Esquinas bracket ─────────────────────────────────────
+    const brace = (x,y,sx,sy) => {
+      ctx.strokeStyle = '#FFC21A'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(x,y+sy*50); ctx.lineTo(x,y); ctx.lineTo(x+sx*50,y); ctx.stroke();
+    };
+    brace(12,10,1,1); brace(W-12,10,-1,1); brace(12,H-10,1,-1); brace(W-12,H-10,-1,-1);
+
+    // Líneas diagonales decorativas
+    ctx.strokeStyle = 'rgba(255,194,26,0.12)'; ctx.lineWidth = 1;
+    [[70,0,0,70],[W-70,0,W,70],[0,H-70,70,H],[W,H-70,W-70,H]].forEach(([x1,y1,x2,y2])=>{
+      ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    });
+
+    // ── Encabezado ───────────────────────────────────────────
+    // Subtítulo
+    ctx.font = '600 12px "Barlow Condensed",sans-serif';
+    ctx.fillStyle = 'rgba(255,194,26,0.55)';
+    ctx.textAlign = 'center';
+    ctx.fillText('QUALIFERS  RUSHEO', W/2, 48);
+
+    // Diamante + líneas
+    const dmX = W/2, dmY = 66;
+    ctx.save(); ctx.translate(dmX,dmY); ctx.rotate(Math.PI/4);
+    ctx.fillStyle = '#FFC21A'; ctx.fillRect(-5,-5,10,10); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,194,26,0.35)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(dmX-90,dmY); ctx.lineTo(dmX-10,dmY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(dmX+10,dmY); ctx.lineTo(dmX+90,dmY); ctx.stroke();
+
+    // Título principal
+    ctx.textAlign = 'center';
+    const tGrad = ctx.createLinearGradient(W/2-200,0,W/2+200,0);
+    tGrad.addColorStop(0,'#C8960C'); tGrad.addColorStop(0.4,'#FFD700');
+    tGrad.addColorStop(0.6,'#FFF176'); tGrad.addColorStop(1,'#C8960C');
+    ctx.fillStyle = tGrad;
+    ctx.font = 'bold 60px "Barlow Condensed",sans-serif';
+    ctx.fillText('CLASIFICACIÓN', W/2, 128);
+    ctx.font = 'bold 48px "Barlow Condensed",sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('GENERAL', W/2, 178);
+
+    // Fase
+    if(g.phase){
+      ctx.font = '500 13px "Barlow Condensed",sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillText(g.phase.toUpperCase(), W/2, 206);
+    }
+
+    // Línea separadora
+    ctx.strokeStyle = lineGrad(); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(40,226); ctx.lineTo(W-40,226); ctx.stroke();
+
+    // ── Cabecera de tabla ─────────────────────────────────────
+    const padX = 28;
+    const cols = {pos:padX+14, team:padX+62, kills:W-218, pts:W-138, total:W-52};
+    const tblY = 248;
+    ctx.font = 'bold 11px "Barlow Condensed",sans-serif';
+    ctx.fillStyle = 'rgba(255,194,26,0.5)'; ctx.textAlign = 'left';
+    ctx.fillText('#', cols.pos, tblY);
+    ctx.fillText('EQUIPO', cols.team, tblY);
+    ctx.textAlign = 'center';
+    ctx.fillText('KILLS', cols.kills, tblY);
+    ctx.fillText('P.POS', cols.pts, tblY);
+    ctx.fillText('TOTAL', cols.total, tblY);
+    ctx.strokeStyle = 'rgba(255,194,26,0.22)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padX,tblY+9); ctx.lineTo(W-padX,tblY+9); ctx.stroke();
+
+    // ── Filas ────────────────────────────────────────────────
+    const podium = ['#FFD700','#B0B8C1','#CD7F32'];
+    rows.forEach((r,i)=>{
+      const y = tblY + 16 + rowH*i + rowH;
+      const qualify = i<(g.qualify||0);
+      const top3 = i<3;
+
+      // Fondo fila
+      if(i===0){
+        const rg=ctx.createLinearGradient(0,y-rowH+8,W,y-rowH+8);
+        rg.addColorStop(0,'transparent'); rg.addColorStop(0.04,'rgba(255,215,0,0.14)');
+        rg.addColorStop(0.96,'rgba(255,215,0,0.14)'); rg.addColorStop(1,'transparent');
+        ctx.fillStyle=rg; ctx.fillRect(0,y-rowH+8,W,rowH-2);
+        ctx.fillStyle='#FFD700'; ctx.fillRect(padX-5,y-rowH+11,3,rowH-8);
+      } else if(qualify){
+        ctx.fillStyle='rgba(255,194,26,0.06)'; ctx.fillRect(padX,y-rowH+8,W-padX*2,rowH-2);
+        ctx.fillStyle='rgba(255,194,26,0.35)'; ctx.fillRect(padX-5,y-rowH+11,2,rowH-8);
+      } else if(i%2===0){
+        ctx.fillStyle='rgba(255,255,255,0.022)'; ctx.fillRect(padX,y-rowH+8,W-padX*2,rowH-2);
+      }
+
+      // Posición (círculo con medalla)
+      ctx.textAlign='center';
+      if(top3){
+        ctx.beginPath(); ctx.arc(cols.pos+8,y-9,14,0,Math.PI*2);
+        ctx.fillStyle=podium[i]+'1e'; ctx.fill();
+        ctx.strokeStyle=podium[i]; ctx.lineWidth=1.5; ctx.stroke();
+        ctx.font=`bold 15px "Barlow Condensed",sans-serif`;
+        ctx.fillStyle=podium[i]; ctx.fillText(`${i+1}`,cols.pos+8,y-3);
+      } else {
+        ctx.font=`bold 16px "Barlow Condensed",sans-serif`;
+        ctx.fillStyle='#444'; ctx.fillText(`${i+1}`,cols.pos+8,y-3);
+      }
+
+      // Nombre equipo
+      ctx.font=`${i<3?'bold':'600'} 20px "Barlow Condensed",sans-serif`;
+      ctx.fillStyle = i===0?'#fff': qualify?'#e0e0e0':'#888';
+      ctx.textAlign='left';
+      const nm=(r.team||'—').toUpperCase();
+      ctx.fillText(nm.length>22?nm.slice(0,21)+'…':nm, cols.team, y-3);
+
+      // Stats
+      ctx.font='500 15px "Barlow Condensed",sans-serif';
+      ctx.fillStyle='#666'; ctx.textAlign='center';
+      ctx.fillText(r.kills||0, cols.kills, y-3);
+      ctx.fillText(r.placement||0, cols.pts, y-3);
+
+      // Total
+      ctx.font=`bold 20px "Barlow Condensed",sans-serif`;
+      ctx.fillStyle = i===0?'#FFD700': qualify?'#FFC21A':'#bbb';
+      ctx.fillText(rrTotal(r), cols.total, y-3);
+
+      // Separador fila
+      if(i<rows.length-1){
+        ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(padX,y+12); ctx.lineTo(W-padX,y+12); ctx.stroke();
+      }
+    });
+
+    // ── Footer ───────────────────────────────────────────────
+    const footY = tblY + 16 + rowH*rows.length + 16;
+    ctx.strokeStyle = lineGrad(); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(40,footY); ctx.lineTo(W-40,footY); ctx.stroke();
+    ctx.font='500 11px "Barlow Condensed",sans-serif';
+    ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.textAlign='center';
+    ctx.fillText('QUALIFERS RUSHEO · rusheo.gg', W/2, footY+22);
+
+    // Descarga
+    const a=document.createElement('a');
+    a.download=`general-${(g.title||'tabla').replace(/\s+/g,'-').toLowerCase()}.png`;
+    a.href=canvas.toDataURL('image/png'); a.click();
+    toast('PNG tabla general descargado');
   }
 
 })();
