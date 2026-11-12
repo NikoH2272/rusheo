@@ -464,32 +464,17 @@
     }
   });
 
-  async function grpIaCallClaude(apiKey, rows, lobby, partidas) {
-    const teamsList = rows
-      .map((r, i) => r.team?.trim() ? `Slot ${i + 1}: ${r.team.trim()}` : null)
-      .filter(Boolean)
-      .join('\n');
-    const content = [];
-    content.push({ type: 'text', text: `EQUIPOS DEL GRUPO (slot = número de casilla en el lobby):\n${teamsList}` });
-    content.push({ type: 'text', text: '--- LOBBY (identifica qué jugadores pertenecen a cada slot) ---' });
-    for (const f of lobby) {
-      content.push({ type: 'image', source: { type: 'base64', media_type: f.type || 'image/jpeg', data: await iaFileToB64(f) } });
-    }
-    for (let i = 0; i < partidas.length; i++) {
-      content.push({ type: 'text', text: `--- RESULTADO PARTIDA_${i + 1} ---` });
-      for (const f of partidas[i]) {
-        content.push({ type: 'image', source: { type: 'base64', media_type: f.type || 'image/jpeg', data: await iaFileToB64(f) } });
-      }
-    }
-    const system = `Eres un extractor de resultados de salas personalizadas de Free Fire.
-Paso 1 — Lobby: identifica qué jugadores pertenecen a cada slot usando las capturas del lobby.
-Paso 2 — Resultados: para cada partida, encuentra la posición final (#1, #2…) y los kills TOTALES del equipo (suma de kills de todos sus jugadores visibles en esa partida).
-Trabaja a nivel de EQUIPO/SLOT, no por jugador individual.
-Para equipos no visibles en ninguna captura de resultado: posicion=0, kills=0.
-Nunca inventes datos.
-Responde ÚNICAMENTE con JSON válido, sin texto adicional:
-{"partidas":[{"partida":1,"equipos":[{"slot":1,"posicion":3,"kills":5}]}]}`;
+  // La IA transcribe lobby y capturas; js/ia-sala.js asigna casillas y suma en código
+  const iaExtraerSala = (apiKey, lobbyFiles, partidas, onStatus) => IA_SALA.extraerSala({
+    request: (system, content, schema) => iaRequest(apiKey, system, content, schema),
+    toB64: iaFileToB64, lobbyFiles, partidas, onStatus,
+  });
 
+  async function grpIaCallClaude(apiKey, lobby, partidas, onStatus) {
+    return IA_SALA.aFormatoGrupo(await iaExtraerSala(apiKey, lobby, partidas, onStatus));
+  }
+
+  async function iaRequest(apiKey, system, content, schema) {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -498,19 +483,28 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
         'content-type': 'application/json',
         'anthropic-dangerous-direct-browser-access': 'true',
       },
-      body: JSON.stringify({ model: 'claude-haiku-5-5', max_tokens: 16384, system, messages: [{ role: 'user', content }] }),
+      body: JSON.stringify({
+        model: 'claude-haiku-5-5',
+        max_tokens: 16384,
+        system,
+        messages: [{ role: 'user', content }],
+        output_config: { format: { type: 'json_schema', schema } },
+      }),
     });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       throw new Error(err.error?.message || `API HTTP ${resp.status}`);
     }
     const body = await resp.json();
-    const textBlock = (body.content || []).find(b => b.type === 'text');
-    const txt = (textBlock?.text || '').trim();
+    if (body.stop_reason === 'max_tokens') throw new Error('La respuesta de la IA quedó cortada (demasiadas capturas). Prueba con menos partidas a la vez.');
+    if (body.stop_reason === 'refusal') throw new Error('La IA rechazó procesar estas capturas.');
+    const txt = (body.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
     if (!txt) throw new Error(`Respuesta vacía. stop_reason: ${body.stop_reason}`);
-    const jsonMatch = txt.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON no encontrado. Respuesta: ' + txt.slice(0, 300));
-    return JSON.parse(jsonMatch[0]);
+    try {
+      return JSON.parse(txt);
+    } catch (e) {
+      throw new Error('La IA no devolvió JSON válido (' + e.message + '). Respuesta: ' + txt.slice(0, 300));
+    }
   }
 
   async function grpIaExtract(gi, btn) {
@@ -518,7 +512,7 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
     const st = grpIaState[gi];
     const setStatus = (txt, color = 'var(--gray)') => {
       const s = document.getElementById(`ia-panel-${gi}`)?.querySelector('.ia-status');
-      if (s) { s.textContent = txt; s.style.color = color; }
+      if (s) { s.textContent = txt; s.style.color = color; s.style.whiteSpace = 'pre-line'; }
     };
     if (!st.lobby.length) { toast('Sube las capturas del lobby (slots)', true); return; }
     if (!st.partidas.some(p => p.length)) { toast('Sube al menos 1 captura de resultado', true); return; }
@@ -529,9 +523,8 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
       const apiKey = await rpc('staff_get_anthropic_key');
       if (!apiKey) throw new Error('No hay clave IA guardada. Configurala en la pestaña Usuarios.');
 
-      setStatus('Analizando capturas…');
       const rows = data.results[gi]?.rows || [];
-      const extracted = await grpIaCallClaude(apiKey, rows, st.lobby, st.partidas.filter(p => p.length));
+      const extracted = await grpIaCallClaude(apiKey, st.lobby, st.partidas.filter(p => p.length), setStatus);
 
       // Acumular kills y posiciones por slot across todas las partidas
       const agg = {};
@@ -559,7 +552,10 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
       touchedGroups.add(data.results[gi].id);
       grpIaOpen.add(String(gi));
       renderResults(); markDirty();
-      setStatus(`${aplicados} de ${rows.length} equipos actualizados — revisá y guarda`, '#B6FF00');
+      const avisos = extracted.avisos || [], info = extracted.info || [];
+      setStatus(`${aplicados} de ${rows.length} equipos actualizados — revisá y guarda`
+        + (avisos.length ? `\n⚠️ ${avisos.join('\n⚠️ ')}` : '')
+        + (info.length ? `\nℹ️ ${info.join('\nℹ️ ')}` : ''), avisos.length ? '#FCD34D' : '#B6FF00');
       grpIaRenderPartidas(gi);
       if (typeof _IC !== 'undefined') _IC.generar(gi, data);
     } catch (err) {
@@ -918,12 +914,13 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
       if (!apiKey) throw new Error('No hay clave de Anthropic configurada. Configúrala en el tab Usuarios.');
 
       btn.textContent = '⏳ Analizando capturas...';
-      status.textContent = 'Enviando imágenes a Claude Vision...';
-
-      iaExtracted = await iaCallClaude(apiKey, teamsRaw, iaPartidas);
+      iaExtracted = await iaCallClaude(apiKey, iaPartidas, (t) => { status.textContent = t; });
       iaRenderPreview(iaExtracted, teamsRaw);
-      status.textContent = '✓ Extracción completada. Revisá y aplicá al grupo.';
-      status.style.color = '#B6FF00';
+      const nAvisos = (iaExtracted.avisos || []).length;
+      status.textContent = nAvisos
+        ? `✓ Extracción completada con ${nAvisos} aviso(s) — revísalos abajo antes de aplicar.`
+        : '✓ Extracción completada. Revisá y aplicá al grupo.';
+      status.style.color = nAvisos ? '#FCD34D' : '#B6FF00';
     } catch (e) {
       status.textContent = '✗ Error: ' + e.message;
       status.style.color = '#FCA5A5';
@@ -942,68 +939,8 @@ Responde ÚNICAMENTE con JSON válido, sin texto adicional:
     });
   }
 
-  async function iaCallClaude(apiKey, teamsRaw, partidas) {
-    const content = [];
-    const slots = teamsRaw.split('\n').map((n, i) => n.trim() ? `Slot ${i + 1}: ${n.trim()}` : null).filter(Boolean);
-
-    // 1. Equipos
-    content.push({ type: 'text', text: `EQUIPOS (en orden de slot):\n${slots.join('\n')}` });
-
-    // 2. Lobby — 3 capturas compartidas para todas las partidas
-    content.push({ type: 'text', text: '\n--- LOBBY ---' });
-    for (const f of iaLobby) {
-      content.push({ type: 'image', source: { type: 'base64', media_type: f.type || 'image/jpeg', data: await iaFileToB64(f) } });
-    }
-
-    // 3. Resultado de cada partida (1-2 caps c/u)
-    for (let i = 0; i < partidas.length; i++) {
-      const files = partidas[i];
-      if (!files.length) continue;
-      content.push({ type: 'text', text: `\n--- PARTIDA_${i + 1} ---` });
-      for (const f of files) {
-        content.push({ type: 'image', source: { type: 'base64', media_type: f.type || 'image/jpeg', data: await iaFileToB64(f) } });
-      }
-    }
-
-    const system = `Eres un extractor de datos de salas personalizadas de Free Fire. Lees capturas y devuelves SOLO un objeto JSON válido, sin texto adicional, sin markdown.
-Tu salida se guarda directamente en una base de datos: no calcules puntos, totales ni rankings.
-Del lobby extrae nombre de sala, ID, mapa y modo. Por cada slot, sus jugadores y nombre oficial según EQUIPOS.
-En cada partida identifica la posición de cada equipo comparando jugadores con el lobby.
-Por cada jugador visible crea un registro con sus kills (campo "Eliminaciones").
-Si un jugador no estaba en el lobby: es_suplente = true.
-Si un equipo no aparece en la partida: agrégalo a no_visibles.
-Si un jugador está cortado o su número no se lee: kills = null y agrega un aviso.
-Nunca inventes datos.
-Responde ÚNICAMENTE con JSON, sin texto adicional:
-{"sala":{"nombre":"","id":"","mapa":"","modo":""},"equipos":[{"slot":1,"equipo":"","tag":"","jugadores":[]}],"posiciones":[{"partida":1,"slot":1,"posicion":1}],"kills_jugadores":[{"partida":1,"slot":1,"jugador":"","es_suplente":false,"kills":5}],"no_visibles":[{"partida":1,"slots":[]}],"avisos":[]}`;
-
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-5-5',
-        max_tokens: 16384,
-        system,
-        messages: [{ role: 'user', content }],
-      }),
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API HTTP ${resp.status}`);
-    }
-    const body = await resp.json();
-    const textBlock = (body.content || []).find(b => b.type === 'text');
-    const txt = (textBlock?.text || '').trim();
-    if (!txt) throw new Error(`Respuesta vacía. stop_reason: ${body.stop_reason}`);
-    const jsonMatch = txt.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('La IA no devolvió JSON válido. Respuesta: ' + txt.slice(0, 300));
-    return JSON.parse(jsonMatch[0]);
+  async function iaCallClaude(apiKey, partidas, onStatus) {
+    return iaExtraerSala(apiKey, iaLobby, partidas.filter(p => p.length), onStatus);
   }
 
   function iaRenderPreview(extracted, teamsRaw) {
@@ -1044,7 +981,9 @@ Responde ÚNICAMENTE con JSON, sin texto adicional:
     </table></div>`;
 
     if ((extracted.avisos || []).length)
-      html += `<div class="ia-avisos">⚠️ ${extracted.avisos.map(a => esc(String(a))).join(' · ')}</div>`;
+      html += `<div class="ia-avisos">${extracted.avisos.map(a => '⚠️ ' + esc(String(a))).join('<br>')}</div>`;
+    if ((extracted.info || []).length)
+      html += `<div class="ia-avisos" style="opacity:.7">${extracted.info.map(a => 'ℹ️ ' + esc(String(a))).join('<br>')}</div>`;
 
     $('#ia-preview-content').innerHTML = html;
 
