@@ -38,7 +38,7 @@
   addEventListener('beforeunload', e => { if(dirty){e.preventDefault();e.returnValue='';} });
 
   /* ── RPC ── */
-  const rpc = async (fn, args={}) => must(await sb.rpc(fn, {p_token:token,...args}));
+  const rpc = async (fn, args={}) => must(await sb.rpc(PYROCORE.P + fn, {p_token:token,...args}));
 
   /* ── Auth ── */
   let meData = null;
@@ -71,7 +71,7 @@
     const p = $('#li-pass').value;
     if(!u||!p){ toast('Completa los campos',true); return; }
     try {
-      const res = await must(await sb.rpc('staff_login',{p_username:u,p_password:p}));
+      const res = await must(await sb.rpc(PYROCORE.P + 'staff_login',{p_username:u,p_password:p}));
       token = res.token;
       try { localStorage.setItem(TOKEN_KEY,token); } catch(_){}
       $('#pending-msg').hidden = true;
@@ -108,7 +108,8 @@
 
   async function loadData() {
     try {
-      const raw = await PYROCORE.loadData();
+      // staff_schedule incluye las fechas ocultas; sin esto, guardar las borraría
+      const raw = await PYROCORE.fetchFromSupabase(sb.rpc(PYROCORE.P + 'staff_schedule', { p_token: token }));
       data = normalize(raw);
       fillForm();
       markClean();

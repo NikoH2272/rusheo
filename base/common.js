@@ -29,13 +29,16 @@ const PYROCORE = (() => {
 
   const must = ({ data, error }) => { if (error) throw new Error(error.message); return data; };
 
+  // Prefijo de tablas/funciones (la base se comparte con otros proyectos)
+  const P = (window.PYROCORE_CONFIG || {}).prefix || "";
+
   async function fetchFromSupabase(scheduleQuery) {
     const [settings, schedule, groups, rows, sponsors] = await Promise.all([
-      sb.from("settings").select("*").eq("id", 1).maybeSingle().then(must),
-      (scheduleQuery || sb.from("schedule").select("*").order("position")).then(must),
-      sb.from("result_groups").select("*").order("position").then(must),
-      sb.from("result_rows").select("*").order("position").then(must),
-      sb.from("sponsors").select("*").order("position").then(must),
+      sb.from(P + "settings").select("*").eq("id", 1).maybeSingle().then(must),
+      (scheduleQuery || sb.from(P + "schedule").select("*").order("position")).then(must),
+      sb.from(P + "result_groups").select("*").order("position").then(must),
+      sb.from(P + "result_rows").select("*").order("position").then(must),
+      sb.from(P + "sponsors").select("*").order("position").then(must),
     ]);
     const fmt = (d) => (d ? new Date(d).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" }) : "");
     return {
@@ -44,12 +47,12 @@ const PYROCORE = (() => {
       prizes: settings?.prizes || [],
       schedule: schedule.map((m) => ({
         id: m.id, phase: m.phase, group: m.group_name, date: m.date || "", time: m.time || "",
-        rooms: m.rooms, status: m.status, visible: m.visible, note: m.note,
+        rooms: m.rooms, status: m.status, visible: m.visible, note: m.note, teams: m.teams || "",
       })),
       results: groups.map((g) => ({
         id: g.id, phase: g.phase, title: g.title, kind: g.kind, qualify: g.qualify, updated: fmt(g.updated_at),
         rows: rows.filter((r) => r.group_id === g.id)
-          .map((r) => ({ id: r.id, team: r.team, kills: r.kills, placement: r.placement, penalty: r.penalty })),
+          .map((r) => ({ id: r.id, team: r.team, logo_serial: r.logo_serial || "", kills: r.kills, placement: r.placement, penalty: r.penalty })),
       })),
       sponsors: sponsors.map((s) => ({ id: s.id, name: s.name, logo: s.logo_url, url: s.url })),
     };
@@ -146,5 +149,5 @@ const PYROCORE = (() => {
     };
   };
 
-  return { DEFAULT_RULES, getRules, sb, must, fetchFromSupabase, ICONS, esc, safeUrl, safeImg, loadData, total, sortRows, hasTeam, generalRows, groupTag, PHASES, STATES, localTimes };
+  return { DEFAULT_RULES, getRules, sb, must, P, fetchFromSupabase, ICONS, esc, safeUrl, safeImg, loadData, total, sortRows, hasTeam, generalRows, groupTag, PHASES, STATES, localTimes };
 })();
